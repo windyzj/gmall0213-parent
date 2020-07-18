@@ -23,7 +23,17 @@ object DauApp {
     val ssc = new StreamingContext(sparkConf, Seconds(5))
     val groupId = "dau_group"
     val topic = "GMALL_START0213";
+    ///手动偏移量//////
+    //1   从redis中读取偏移量   （启动执行一次）
+    //2   把偏移量传递给kafka ，加载数据流（启动执行一次）
+
+    //3   从流中获得本批次的 偏移量结束点（每批次执行一次）
+    //4   把偏移量结束点 写入到redis中（每批次行一次）
+
+    //1   从redis中读取偏移量   （启动执行一次）
     val offsetMapForKafka: Map[TopicPartition, Long] = OffsetManager.getOffset(topic,groupId)
+
+    //2   把偏移量传递给kafka ，加载数据流（启动执行一次）
     var recordInputDstream: InputDStream[ConsumerRecord[String, String]]=null
     if(offsetMapForKafka!=null&&offsetMapForKafka.size>0){  //根据是否能取到偏移量来决定如何加载kafka 流
       recordInputDstream = MyKafkaUtil.getKafkaStream(topic,ssc,offsetMapForKafka,groupId )
@@ -31,19 +41,16 @@ object DauApp {
       recordInputDstream = MyKafkaUtil.getKafkaStream(topic,ssc, groupId )
     }
 
-    ///手动偏移量//////
-    //1   从redis中读取偏移量   （启动执行一次）
-    //2   把偏移量传递给kafka ，加载数据流（启动执行一次）
 
     //3   从流中获得本批次的 偏移量结束点（每批次执行一次）
-    //4   把偏移量结束点 写入到redis中（每批次行一次）
     var offsetRanges: Array[OffsetRange]=null    //周期性储存了当前批次偏移量的变化状态，重要的是偏移量结束点
-    recordInputDstream.transform{rdd=>  //周期性在driver中执行
-      offsetRanges= rdd.asInstanceOf[HasOffsetRanges].offsetRanges
+    val inputGetOffsetDstream: DStream[ConsumerRecord[String, String]] = recordInputDstream.transform { rdd => //周期性在driver中执行
+      println(1111)
+      offsetRanges = rdd.asInstanceOf[HasOffsetRanges].offsetRanges
       rdd
     }
 
-
+    println(22222)
 
     //////////////////////////////////////////////////////////
     ///去重///////////////////////////////////////////////////
@@ -70,7 +77,7 @@ object DauApp {
 
     //写到es 中
 
-    val jsonObjDstream: DStream[JSONObject] = recordInputDstream.map { record =>
+    val jsonObjDstream: DStream[JSONObject] = inputGetOffsetDstream.map { record =>
       val jsonString: String = record.value()
       // 把json变成对象map jsonObject  case class
       val jsonObject: JSONObject = JSON.parseObject(jsonString)
@@ -100,10 +107,24 @@ object DauApp {
       }
       jedis.close()
       println("过滤后：" + jsonObjList.size)
+
       jsonObjList.toIterator
+
+    }
+    println(33333)
+
+
+
+    //jsonObjFilteredDstream.print(1000)
+
+    jsonObjFilteredDstream.foreachRDD{rdd=>
+
+      rdd.foreach(jsonObj=>println(jsonObj)) // 写入数据库的操作
+
+      OffsetManager.saveOffset(topic,groupId,offsetRanges)// 要在driver中执行 周期性 每批执行一次
+
     }
 
-    jsonObjFilteredDstream.print(1000)
 
     //    jsonObjDstream.filter{jsonObj=>
     //      //mid   时间
