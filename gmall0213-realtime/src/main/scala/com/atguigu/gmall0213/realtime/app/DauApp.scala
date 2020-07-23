@@ -99,6 +99,7 @@ object DauApp {
         val dt: String = new SimpleDateFormat("yyyy-MM-dd").format(new Date(ts))
         //      // redis  type ? set   key?  dau:2020-07-18   value ? mid ...
         val key = "dau:" + dt
+        println("key:"+key+"||mid:"+mid)
         val flag: lang.Long = jedis.sadd(key, mid)
 
         //      // 判断返回值 1或0  1 保留数据 0 过滤掉
