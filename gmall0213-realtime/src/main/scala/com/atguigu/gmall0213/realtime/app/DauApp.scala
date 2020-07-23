@@ -5,7 +5,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.alibaba.fastjson.{JSON, JSONObject}
-import com.atguigu.gmall0213.realtime.util.{MyKafkaUtil, OffsetManager, RedisUtil}
+import com.atguigu.gmall0213.bean.DauInfo
+import com.atguigu.gmall0213.realtime.util.{MyEsUtil, MyKafkaUtil, OffsetManager, RedisUtil}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf
@@ -117,9 +118,40 @@ object DauApp {
 
     //jsonObjFilteredDstream.print(1000)
 
+    //写入到ES中
     jsonObjFilteredDstream.foreachRDD{rdd=>
 
-      rdd.foreach(jsonObj=>println(jsonObj)) // 写入数据库的操作
+     // rdd.foreach(jsonObj=>println(jsonObj)) // 写入数据库的操作
+      rdd.foreachPartition{jsonObjItr=>
+        val jsonObjList: List[JSONObject] = jsonObjItr.toList
+        val formattor = new SimpleDateFormat("yyyy-MM-dd HH:mm")
+        val dauWithIdList: List[(DauInfo, String)] = jsonObjList.map { jsonObj =>
+
+          val commonJsonObj: JSONObject = jsonObj.getJSONObject("common")
+
+          //获取日期 、小时、分钟
+          val ts: lang.Long = jsonObj.getLong("ts")
+          val dateTimeString: String = formattor.format(new Date(ts))
+          val dateTimeArr: Array[String] = dateTimeString.split(" ")
+          val dt: String = dateTimeArr(0)
+          val time: String = dateTimeArr(1)
+          val timeArr: Array[String] = time.split(":")
+          val hr: String = timeArr(0)
+          val mi: String = timeArr(1)
+
+          val dauInfo = DauInfo(commonJsonObj.getString("mid"),
+            commonJsonObj.getString("uid"),
+            commonJsonObj.getString("ar"),
+            commonJsonObj.getString("ch"),
+            commonJsonObj.getString("vc"),
+            dt, hr, mi, ts
+          )
+          (dauInfo, dauInfo.mid) //日活表（按天切分索引)
+        }
+        val today= new SimpleDateFormat("yyyyMMdd").format(new Date())
+        MyEsUtil.bulkSave(dauWithIdList,"gmall_dau_info0213_"+today)
+
+      }
 
       OffsetManager.saveOffset(topic,groupId,offsetRanges)// 要在driver中执行 周期性 每批执行一次
 
