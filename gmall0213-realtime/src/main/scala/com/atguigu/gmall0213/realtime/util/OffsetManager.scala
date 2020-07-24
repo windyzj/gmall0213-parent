@@ -44,7 +44,7 @@ object OffsetManager {
     for (offsetRange <- offsetRanges ) {
       val partition: String = offsetRange.partition.toString
       val untilOffset: String = offsetRange.untilOffset.toString
-      println("写入偏移量：分区："+partition+"==>"+untilOffset)
+     // println("写入偏移量：分区："+partition+"==>"+untilOffset)
       offsetMap.put(partition,untilOffset)
     }
     val jedis: Jedis = RedisUtil.getJedisClient
