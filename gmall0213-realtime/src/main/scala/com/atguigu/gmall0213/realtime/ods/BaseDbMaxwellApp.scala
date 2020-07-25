@@ -52,23 +52,30 @@ object BaseDbMaxwellApp {
 
     jsonObjDstream.foreachRDD{rdd=>
 
-      rdd.foreach{jsonObj=>
+      rdd.foreach { jsonObj =>
         //解析json
         val tableName: String = jsonObj.getString("table")
         val optType: String = jsonObj.getString("type")
-        val topicName="ODS_"+tableName.toUpperCase
-       // val dataArr: JSONArray = jsonObj.getJSONArray("data")
+        val topicName = "ODS_" + tableName.toUpperCase
+        // val dataArr: JSONArray = jsonObj.getJSONArray("data")
         val json: String = jsonObj.getString("data")
-//        println(s"tableName = ${tableName}")
-//        println(s"optType = ${optType}")
-        if((tableName.equals("order_info")&&optType.equals("insert"))
-        ||(tableName.equals("order_detail")&&optType.equals("insert"))
-        ){
+        //        println(s"tableName = ${tableName}")
+        //        println(s"optType = ${optType}")
+        if (json != null && json.length > 3) {
+          if ((tableName.equals("order_info") && optType.equals("insert"))
+            || (tableName.equals("order_detail") && optType.equals("insert"))
+            || (tableName.equals("base_province"))
+            || (tableName.equals("user_info"))
+            || (tableName.equals("sku_info"))
+            || (tableName.equals("base_trademark"))
+            || (tableName.equals("base_category3"))
+            || (tableName.equals("spu_info"))
+          ) {
             //发送到kafka主题
-            MyKafkaSink.send(topicName,json);
+            MyKafkaSink.send(topicName, json);
           }
         }
-
+      }
       //driver 提交偏移量
       OffsetManager.saveOffset(topic,groupId,offsetRanges)
     }
