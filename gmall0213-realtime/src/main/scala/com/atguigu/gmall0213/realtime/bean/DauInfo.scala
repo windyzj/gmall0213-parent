@@ -1,4 +1,4 @@
-package com.atguigu.gmall0213.bean
+package com.atguigu.gmall0213.realtime.bean
 
 case class DauInfo(
                     mid:String,

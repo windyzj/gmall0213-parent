@@ -5,7 +5,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import com.alibaba.fastjson.{JSON, JSONObject}
-import com.atguigu.gmall0213.bean.DauInfo
+import com.atguigu.gmall0213.realtime.bean.DauInfo
 import com.atguigu.gmall0213.realtime.util.{MyEsUtil, MyKafkaUtil, OffsetManager, RedisUtil}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
@@ -122,7 +122,7 @@ object DauApp {
     //写入到ES中
     jsonObjFilteredDstream.foreachRDD{rdd=>
 
-     // rdd.foreach(jsonObj=>println(jsonObj)) // 写入数据库的操作
+//       rdd.foreach(jsonObj=>println(jsonObj)) // 写入数据库的操作
       rdd.foreachPartition{jsonObjItr=>
         val jsonObjList: List[JSONObject] = jsonObjItr.toList
         val formattor = new SimpleDateFormat("yyyy-MM-dd HH:mm")
