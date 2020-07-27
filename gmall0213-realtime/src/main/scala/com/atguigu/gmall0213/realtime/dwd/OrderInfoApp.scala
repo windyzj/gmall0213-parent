@@ -209,7 +209,7 @@ object OrderInfoApp {
 //
         val orderInfoList: List[(OrderInfo, String)] = orderInfoItr.toList.map(orderInfo => (orderInfo, orderInfo.id.toString))
         val dateStr: String = new SimpleDateFormat("yyyyMMdd").format(new Date())
-        MyEsUtil.bulkSave(orderInfoList, "gmall0213_order_info_" + dateStr)
+     //   MyEsUtil.bulkSave(orderInfoList, "gmall0213_order_info_" + dateStr)
 
        // 3  推kafka 进入下一层处理   可选  主题： DWD_ORDER_INFO
         for ((orderInfo, id) <- orderInfoList) {  //fastjson 要把scala对象包括caseclass转json字符串 需要加入,new SerializeConfig(true)

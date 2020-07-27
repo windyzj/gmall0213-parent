@@ -73,6 +73,7 @@ object BaseDbMaxwellApp {
           ) {
             //发送到kafka主题
             MyKafkaSink.send(topicName, json);
+            Thread.sleep(400)
           }
         }
       }
