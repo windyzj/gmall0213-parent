@@ -1,8 +1,13 @@
 package com.atguigu.gmall0213.realtime.dwd
 
+import java.lang
+import java.text.SimpleDateFormat
+import java.util.Date
+
+import com.alibaba.fastjson.serializer.SerializeConfig
 import com.alibaba.fastjson.{JSON, JSONObject}
 import com.atguigu.gmall0213.realtime.bean.{OrderInfo, UserState}
-import com.atguigu.gmall0213.realtime.util.{MyKafkaUtil, OffsetManager, PhoenixUtil}
+import com.atguigu.gmall0213.realtime.util.{MyEsUtil, MyKafkaSink, MyKafkaUtil, OffsetManager, PhoenixUtil}
 import org.apache.hadoop.conf.Configuration
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
@@ -11,6 +16,7 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka010.{HasOffsetRanges, OffsetRange}
 import org.apache.phoenix.spark._
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 
 object OrderInfoApp {
@@ -137,25 +143,84 @@ object OrderInfoApp {
 
 
 
-    orderInfoRealWithFirstFlagDstream.print(1000)
+    //orderInfoRealWithFirstFlagDstream.print(1000)
 
+   //////////////////////////
+    //////关联维表 /////////
+    /////////////////////
+
+    // 查询维度表（省份)
+    //map 每条数 /  mapPartition 每个分区  mapPartition针对每个分区的数据进行查询得到结果后在分发给每条数据
+    //transform 把整个维度表查询出来 在分发给各个分区
+
+    //查询维表 地区
+    //driver //启动执行 只执行一次 //如果数据有可能发生变化 查询周期性查询
+//    val sql="select id ,name,area_code ,iso_3166_2 from gmall0213_province_info"
+//    val provinceList: List[JSONObject] = PhoenixUtil.queryList(sql)
+//    val provinceBC: Broadcast[List[JSONObject]] = ssc.sparkContext.broadcast(provinceList)
+   // transform  foreachRDD
+    val orderInfoWithProvinceDstream: DStream[OrderInfo] = orderInfoRealWithFirstFlagDstream.transform { rdd =>
+      //rdd外面 driver 中
+      val sql = "select ID ,NAME,AREA_CODE ,ISO_3166_2 from GMALL0213_PROVINCE_INFO" //如果使用场景是整表查询 不用做预分区  不要加盐了
+    val provinceList: List[JSONObject] = PhoenixUtil.queryList(sql)
+      val provinceMap: Map[lang.Long, JSONObject] = provinceList.map { jsonObj => (jsonObj.getLong("ID"), jsonObj) }.toMap
+
+      val provinceMapBC: Broadcast[Map[lang.Long, JSONObject]] = ssc.sparkContext.broadcast(provinceMap)
+      //rdd.xxx{ ex中}
+      val rddWithProvince: RDD[OrderInfo] = rdd.map { orderInfo =>
+        val provinceMap: Map[lang.Long, JSONObject] = provinceMapBC.value
+        val provinceJsonObj: JSONObject = provinceMap.getOrElse(orderInfo.province_id, null)
+        if (provinceJsonObj != null) {
+          orderInfo.province_name = provinceJsonObj.getString("NAME")
+          orderInfo.province_area_code = provinceJsonObj.getString("AREA_CODE")
+          orderInfo.province_3166_2_code = provinceJsonObj.getString("ISO_3166_2")
+        }
+        orderInfo
+      }
+      rddWithProvince
+    }
+
+    // 还要合并用户的维度的数据
+    // 此处作为作业开发
+
+
+
+   // orderInfoWithProvinceDstream.print(1000)
 
 
     //写入操作
-    // 1  更新  用户状态
-    // 2  存储olap  用户分析    可选
-    // 3  推kafka 进入下一层处理   可选
-
-    orderInfoRealWithFirstFlagDstream.foreachRDD { rdd =>
-      val userStateRDD: RDD[UserState] = rdd.map(orderInfo => UserState(orderInfo.user_id.toString, "1"))
-      //spark phoenix的整合工具
-      userStateRDD.saveToPhoenix("USER_STATE0213",
+    // 1  更新  用户状态  phoenix
+    // 2  存储olap  用户分析    可选  es
+    // 3  推kafka 进入下一层处理   可选  主题： DWD_ORDER_INFO
+    // 4  提交偏移量
+     orderInfoWithProvinceDstream.foreachRDD { rdd =>
+      rdd.cache()
+       // 1  更新  用户状态  phoenix
+        val userStateRDD: RDD[UserState] = rdd.map(orderInfo => UserState(orderInfo.user_id.toString, "1"))
+//      //spark phoenix的整合工具
+       userStateRDD.saveToPhoenix("USER_STATE0213",
         Seq("USER_ID", "IF_CONSUMED"),
         new Configuration,
         Some("hdp1,hdp2,hdp3:2181"))
+////
+////
+       // 2  存储olap  用户分析    可选  es  建立索引
+     rdd.foreachPartition { orderInfoItr =>
+//
+        val orderInfoList: List[(OrderInfo, String)] = orderInfoItr.toList.map(orderInfo => (orderInfo, orderInfo.id.toString))
+        val dateStr: String = new SimpleDateFormat("yyyyMMdd").format(new Date())
+        MyEsUtil.bulkSave(orderInfoList, "gmall0213_order_info_" + dateStr)
 
-    }
+       // 3  推kafka 进入下一层处理   可选  主题： DWD_ORDER_INFO
+        for ((orderInfo, id) <- orderInfoList) {  //fastjson 要把scala对象包括caseclass转json字符串 需要加入,new SerializeConfig(true)
+                                                  //json4s scala专用工具
+          MyKafkaSink.send("DWD_ORDER_INFO", id, JSON.toJSONString(orderInfo,new SerializeConfig(true)))
+        }
 
+     }
+       // 4  提交偏移量 //driver中执行
+      OffsetManager.saveOffset(topic,groupId,offsetRanges)
+     }
     ssc.start()
     ssc.awaitTermination()
 

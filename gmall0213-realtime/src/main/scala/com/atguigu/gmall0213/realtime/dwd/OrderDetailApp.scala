@@ -1,29 +1,25 @@
-package com.atguigu.gmall0213.realtime.dim
-
-import java.text.SimpleDateFormat
-import java.util.Date
+package com.atguigu.gmall0213.realtime.dwd
 
 import com.alibaba.fastjson.JSON
-import com.atguigu.gmall0213.realtime.bean.{OrderInfo, ProvinceInfo}
-import com.atguigu.gmall0213.realtime.util.{MyEsUtil, MyKafkaUtil, OffsetManager}
-import org.apache.hadoop.conf.Configuration
+import com.alibaba.fastjson.serializer.SerializeConfig
+import com.atguigu.gmall0213.realtime.bean.{OrderDetail, OrderInfo}
+import com.atguigu.gmall0213.realtime.util.{MyKafkaSink, MyKafkaUtil, OffsetManager}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka010.{HasOffsetRanges, OffsetRange}
-import org.apache.phoenix.spark._
-object DimBaseProvinceApp {
+
+object OrderDetailApp {
 
   def main(args: Array[String]): Unit = {
-    //1 从ods层(kafka) 获得对应维表数据  //2 偏移量后置 幂等
-    //2 数据转换 case class
-    //3 保存到hbase(phoenix)
-    val sparkConf: SparkConf = new SparkConf().setMaster("local[4]").setAppName("dim_base_province_app")
+
+    // 加载流 //手动偏移量
+    val sparkConf: SparkConf = new SparkConf().setMaster("local[4]").setAppName("dwd_order_detail_app")
     val ssc = new StreamingContext(sparkConf, Seconds(5))
-    val groupId = "dim_base_province_group"
-    val topic = "ODS_BASE_PROVINCE";
+    val groupId = "dwd_order_detail_group"
+    val topic = "ODS_ORDER_DETAIL";
 
 
     //1   从redis中读取偏移量   （启动执行一次）
@@ -37,6 +33,7 @@ object DimBaseProvinceApp {
       recordInputDstream = MyKafkaUtil.getKafkaStream(topic, ssc, groupId)
     }
 
+
     //3   从流中获得本批次的 偏移量结束点（每批次执行一次）
     var offsetRanges: Array[OffsetRange] = null //周期性储存了当前批次偏移量的变化状态，重要的是偏移量结束点
     val inputGetOffsetDstream: DStream[ConsumerRecord[String, String]] = recordInputDstream.transform { rdd => //周期性在driver中执行
@@ -44,25 +41,37 @@ object DimBaseProvinceApp {
       rdd
     }
 
-    val provinceDstream: DStream[ProvinceInfo] = inputGetOffsetDstream.map { record =>
-      val json: String = record.value()
-      val provinceInfo: ProvinceInfo = JSON.parseObject(json, classOf[ProvinceInfo])
-      provinceInfo
+
+    // 1 提取数据 2 分topic
+    val orderDetailDstream: DStream[OrderDetail] = inputGetOffsetDstream.map { record =>
+      val jsonString: String = record.value()
+      //订单处理  脱敏  换成特殊字符  直接去掉   转换成更方便操作的专用样例类
+      val orderDetail: OrderDetail = JSON.parseObject(jsonString, classOf[OrderDetail])
+      orderDetail
+    }
+
+    orderDetailDstream.print(1000)
+
+    //////////////////////////
+    /////////维度关联： spu id name , trademark id name , category3 id name/////////
+    //////////////////////////
+
+    orderDetailDstream.foreachRDD{rdd=>
+      rdd.foreach{orderDetail=>
+        MyKafkaSink.send("DWD_ORDER_DETAIL",  JSON.toJSONString(orderDetail,new SerializeConfig(true)))
+
+      }
+      OffsetManager.saveOffset(topic,groupId,offsetRanges)
+
     }
 
 
-    //4  1 写入phoenix 2 提交偏移量
-    provinceDstream.foreachRDD{rdd=>
-
-      rdd.saveToPhoenix("GMALL0213_PROVINCE_INFO",Seq("ID", "NAME",  "AREA_CODE","ISO_CODE","ISO_3166_2"),new Configuration,Some("hdp1,hdp2,hdp3:2181"))
-      OffsetManager.saveOffset(topic,groupId,offsetRanges)
-
-
-
-      }
     ssc.start()
     ssc.awaitTermination()
-
   }
+
+
+
+
 
 }

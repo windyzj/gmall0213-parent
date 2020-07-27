@@ -19,6 +19,7 @@ case class OrderInfo(
 
                       var province_name:String,//查询维表得到
                       var province_area_code:String,
+                      var province_3166_2_code:String,
 
                       var user_age_group:String,
                       var user_gender:String
