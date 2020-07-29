@@ -154,6 +154,10 @@ object OrderWideApp {
      // 关闭redis
       //返回一个计算完成的 list的迭代器
 
+      // 当多个分区的数据 可能会同时访问某一个数值（累计值）的情况 ，可能会出现并发问题
+      // 1  本身数据库是否有并发控制 redis 单线程  mysql行锁
+      //2   让涉及并发的数据存在于同一个分区中   2.1  进入kafka的时候指定分区键  2.2 在spark 利用dstream[k,v].partitionby(new HashPartitioner(partNum)) shuffle
+
       null
     }
 
