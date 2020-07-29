@@ -128,6 +128,34 @@ object OrderWideApp {
     // 如何判断最后一笔 ？如果当前的一笔 个数*单价== 原始总金额-  Σ其他的明细（个数*单价）
     //   利用 redis(mysql)  保存计算完成的累计值  Σ其他的明细的分摊金额 Σ其他的明细（个数*单价）
 
+    orderWideDstream.mapPartitions{orderWideItr=>
+      //建连接
+      //迭代
+      for (orderWide <- orderWideItr ) {
+        // 判断计算方式
+        //如何判断最后一笔 ? 如果当前的一笔 个数*单价== 原始总金额-  Σ其他的明细（个数*单价）
+        // 个数 单价  原始金额 可以从orderWide取到
+        // 要从redis中取得累计值   Σ其他的明细（个数*单价）
+        // redis    type?  string    key?  order_origin_sum:[order_id]  value? Σ其他的明细（个数*单价）
+        //如果等式成立 说明该笔明细是最后一笔
+                    // 分摊计算公式 :减法公式  分摊金额= 实际付款金额-  Σ其他的明细的分摊金额  (减法，适用最后一笔明细）
+                                       // 实际付款金额 在orderWide中，
+                                        // 要从redis中取得  Σ其他的明细的分摊金额
+                                         // redis    type?  string    key?  order_split_sum:[order_id]  value? Σ其他的明细的分摊金额
+        //如果不成立
+                   // 分摊计算公式： 乘除法公式： 分摊金额= 实际付款金额 *(个数*单价) / 原始总金额   （乘除法，适用非最后一笔明细)
+                                     //  所有计算要素都在 orderWide 中，直接计算即可
+          // 分摊金额计算完成以后
+          // 要赋给orderWide中分摊金额
+           //  要本次计算的分摊金额 累计到redis    Σ其他的明细的分摊金额
+           //   应付金额（单价*个数) 要累计到   Σ其他的明细（个数*单价）
+
+      }
+     // 关闭redis
+      //返回一个计算完成的 list的迭代器
+
+      null
+    }
 
 
 
