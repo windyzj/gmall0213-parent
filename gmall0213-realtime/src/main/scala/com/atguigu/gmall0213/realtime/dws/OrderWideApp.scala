@@ -1,6 +1,7 @@
 package com.atguigu.gmall0213.realtime.dws
 
 import java.lang
+import java.util.Properties
 
 import com.alibaba.fastjson.JSON
 import com.atguigu.gmall0213.realtime.bean.{OrderDetail, OrderInfo, OrderWide}
@@ -8,6 +9,7 @@ import com.atguigu.gmall0213.realtime.util.{MyKafkaUtil, OffsetManager, RedisUti
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.apache.spark.streaming.dstream.{DStream, InputDStream}
 import org.apache.spark.streaming.kafka010.{HasOffsetRanges, OffsetRange}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
@@ -118,10 +120,36 @@ object OrderWideApp {
       orderWideList.toIterator
     }
 
-    orderWideDstream.print(1000)
+    //orderWideDstream.print(1000)
+
+    // //按比例求分摊: 分摊金额/实际付款金额 = 个数*单价  /原始总金额
+    // 分摊金额= 实际付款金额 *(个数*单价) / 原始总金额   （乘除法，适用非最后一笔明细)
+    //         最后一笔 = 实际付款金额-  Σ其他的明细的分摊金额  (减法，适用最后一笔明细）
+    // 如何判断最后一笔 ？如果当前的一笔 个数*单价== 原始总金额-  Σ其他的明细（个数*单价）
+    //   利用 redis(mysql)  保存计算完成的累计值  Σ其他的明细的分摊金额 Σ其他的明细（个数*单价）
 
 
+
+
+
+
+
+    //jdbc sql
+
+    val sparkSession: SparkSession = SparkSession.builder().appName("dws_order_wide_app")getOrCreate()
+
+    import  sparkSession.implicits._
     orderWideDstream.foreachRDD{rdd=>
+      val df: DataFrame = rdd.toDF()
+      df.write.mode(SaveMode.Append)
+        .option("batchsize", "100")
+        .option("isolationLevel", "NONE") // 设置事务
+        .option("numPartitions", "4") // 设置并发
+        .option("driver","ru.yandex.clickhouse.ClickHouseDriver")
+        .jdbc("jdbc:clickhouse://hdp1:8123/test0213","order_wide_0213",new Properties())
+
+
+
       OffsetManager.saveOffset(orderInfoTopic,orderInfoGroupId,orderInfoOffsetRanges)
       OffsetManager.saveOffset(orderDetailTopic,orderDetailGroupId,orderDetailOffsetRanges)
     }

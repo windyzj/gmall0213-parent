@@ -1,6 +1,6 @@
 package com.atguigu.gmall0213.realtime.bean
 
-case class OrderWide(
+case class OrderWide(         //主表加从表数据库字段
                             var order_detail_id:Long =0L,
                             var order_id: Long=0L,
                             var order_status:String=null,
@@ -11,13 +11,16 @@ case class OrderWide(
                             var sku_num: Long=0L,
                             var sku_name: String=null,
                             var benefit_reduce_amount:Double =0D ,
-                            var original_total_amount:Double =0D ,
-                            var feight_fee:Double=0D,
-                            var final_total_amount: Double =0D ,
+                              var feight_fee:Double=0D,
+                            var original_total_amount:Double =0D , //原始总金额 = 明细 Σ 个数*单价
+                              var final_total_amount: Double =0D , //实际付款金额 =  原始购买金额-优惠减免金额+运费
+
+                            //分摊金额
                             var final_detail_amount:Double=0D,
 
+                        //首充
                             var if_first_order:String=null,
-
+                         //主表维度 ： 省市  ， 年龄段 性别
                             var province_name:String=null,
                             var province_area_code:String=null,
 
@@ -26,6 +29,8 @@ case class OrderWide(
 
                             var dt:String=null,
 
+
+                    // 从表的维度   spu,品牌,品类
                             var spu_id: Long=0L,
                             var tm_id: Long=0L,
                             var category3_id: Long=0L,
