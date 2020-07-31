@@ -183,6 +183,26 @@ object OrderInfoApp {
     // 还要合并用户的维度的数据
     // 此处作为作业开发
 
+    //////////////////用户信息关联//////////////////////////
+    val orderInfoWithUserDstream: DStream[OrderInfo] = orderInfoWithProvinceDstream.mapPartitions { orderInfoItr =>
+      val orderList: List[OrderInfo] = orderInfoItr.toList
+      if(orderList.size>0) {
+        val userIdList: List[Long] = orderList.map(_.user_id)
+        val sql = "select id ,user_level ,  birthday  , gender  , age_group  , gender_name from gmall0105_user_info where id in ('" + userIdList.mkString("','") + "')"
+        val userJsonObjList: List[JSONObject] = PhoenixUtil.queryList(sql)
+        val userJsonObjMap: Map[Long, JSONObject] = userJsonObjList.map(userJsonObj => (userJsonObj.getLongValue("ID"), userJsonObj)).toMap
+        for (orderInfo <- orderList) {
+          val userJsonObj: JSONObject = userJsonObjMap.getOrElse(orderInfo.user_id, null)
+          orderInfo.user_age_group = userJsonObj.getString("AGE_GROUP")
+          orderInfo.user_gender = userJsonObj.getString("GENDER_NAME")
+        }
+      }
+      orderList.toIterator
+    }
+
+
+
+
 
 
    // orderInfoWithProvinceDstream.print(1000)
@@ -193,7 +213,7 @@ object OrderInfoApp {
     // 2  存储olap  用户分析    可选  es
     // 3  推kafka 进入下一层处理   可选  主题： DWD_ORDER_INFO
     // 4  提交偏移量
-     orderInfoWithProvinceDstream.foreachRDD { rdd =>
+    orderInfoWithUserDstream.foreachRDD { rdd =>
       rdd.cache()
        // 1  更新  用户状态  phoenix
         val userStateRDD: RDD[UserState] = rdd.map(orderInfo => UserState(orderInfo.user_id.toString, "1"))

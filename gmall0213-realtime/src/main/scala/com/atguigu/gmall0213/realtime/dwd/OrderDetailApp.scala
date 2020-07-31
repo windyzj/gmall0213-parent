@@ -1,9 +1,9 @@
 package com.atguigu.gmall0213.realtime.dwd
 
-import com.alibaba.fastjson.JSON
+import com.alibaba.fastjson.{JSON, JSONObject}
 import com.alibaba.fastjson.serializer.SerializeConfig
 import com.atguigu.gmall0213.realtime.bean.{OrderDetail, OrderInfo}
-import com.atguigu.gmall0213.realtime.util.{MyKafkaSink, MyKafkaUtil, OffsetManager}
+import com.atguigu.gmall0213.realtime.util.{MyKafkaSink, MyKafkaUtil, OffsetManager, PhoenixUtil}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf
@@ -50,13 +50,41 @@ object OrderDetailApp {
       orderDetail
     }
 
-    orderDetailDstream.print(1000)
+    //orderDetailDstream.print(1000)
 
     //////////////////////////
     /////////维度关联： spu id name , trademark id name , category3 id name/////////
     //////////////////////////
 
-    orderDetailDstream.foreachRDD{rdd=>
+    // 合并维表数据
+    // 品牌 分类 spu  作业
+    //  orderDetailDstream.
+    /////////////// 合并 商品信息////////////////////
+
+    val orderDetailWithSkuDstream: DStream[OrderDetail] = orderDetailDstream.mapPartitions { orderDetailItr =>
+      val orderDetailList: List[OrderDetail] = orderDetailItr.toList
+      if(orderDetailList.size>0) {
+        val skuIdList: List[Long] = orderDetailList.map(_.sku_id)
+        val sql = "select id ,tm_id,spu_id,category3_id,tm_name ,spu_name,category3_name  from gmall0213_sku_info  where id in ('" + skuIdList.mkString("','") + "')"
+        val skuJsonObjList: List[JSONObject] = PhoenixUtil.queryList(sql)
+        val skuJsonObjMap: Map[Long, JSONObject] = skuJsonObjList.map(skuJsonObj => (skuJsonObj.getLongValue("ID"), skuJsonObj)).toMap
+        for (orderDetail <- orderDetailList) {
+          val skuJsonObj: JSONObject = skuJsonObjMap.getOrElse(orderDetail.sku_id, null)
+          orderDetail.spu_id = skuJsonObj.getLong("SPU_ID")
+          orderDetail.spu_name = skuJsonObj.getString("SPU_NAME")
+          orderDetail.tm_id = skuJsonObj.getLong("TM_ID")
+          orderDetail.tm_name = skuJsonObj.getString("TM_NAME")
+          orderDetail.category3_id = skuJsonObj.getLong("CATEGORY3_ID")
+          orderDetail.category3_name = skuJsonObj.getString("CATEGORY3_NAME")
+        }
+      }
+      orderDetailList.toIterator
+    }
+
+
+
+
+    orderDetailWithSkuDstream.foreachRDD{rdd=>
       rdd.foreach{orderDetail=>
         MyKafkaSink.send("DWD_ORDER_DETAIL",  JSON.toJSONString(orderDetail,new SerializeConfig(true)))
 
