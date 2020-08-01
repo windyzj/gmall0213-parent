@@ -116,13 +116,13 @@
 
         <dependency>
             <groupId>org.scalikejdbc</groupId>
-            <artifactId>scalikejdbc_2.11</artifactId>
+            <artifactId>scalikejdbc_2.12</artifactId>
             <version>2.5.0</version>
         </dependency>
         <!-- scalikejdbc-config_2.11 -->
         <dependency>
             <groupId>org.scalikejdbc</groupId>
-            <artifactId>scalikejdbc-config_2.11</artifactId>
+            <artifactId>scalikejdbc-config_2.12</artifactId>
             <version>2.5.0</version>
         </dependency>
         <dependency>

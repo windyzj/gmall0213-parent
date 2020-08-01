@@ -2,6 +2,7 @@ package com.atguigu.gmall2013.publisher.service.impl;
 
 import com.atguigu.gmall2013.publisher.bean.HourAmount;
 import com.atguigu.gmall2013.publisher.mapper.OrderWideMapper;
+import com.atguigu.gmall2013.publisher.mapper.TrademarkStatMapper;
 import com.atguigu.gmall2013.publisher.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,9 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     OrderWideMapper orderWideMapper;
 
+    @Autowired
+    TrademarkStatMapper trademarkStatMapper;
+
     @Override
     public BigDecimal getOrderTotalAmount(String dt) {
         return orderWideMapper.getOrderTotalAmount(dt);
@@ -33,5 +37,10 @@ public class OrderServiceImpl implements OrderService {
             hourAmountMap.put(hourAmount.getHr(),hourAmount.getOrderAmount());
         }
         return hourAmountMap;
+    }
+
+    @Override
+    public List<Map> getTrademarkSum(String startDt, String endDt) {
+        return trademarkStatMapper.getTrademarkSum(startDt,endDt);
     }
 }

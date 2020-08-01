@@ -17,6 +17,7 @@ import redis.clients.jedis.Jedis
 import java.math.BigDecimal
 
 import com.alibaba.fastjson.serializer.SerializeConfig
+import org.apache.spark.storage.StorageLevel
 
 import scala.collection.mutable.ListBuffer
 
@@ -196,8 +197,8 @@ object OrderWideApp {
       orderWideList.toIterator
     }
 
-    orderWideWithSplitDstream.cache()
-    orderWideWithSplitDstream.print(1000)
+    orderWideWithSplitDstream.persist(StorageLevel.MEMORY_ONLY)
+     orderWideWithSplitDstream.print(1000)
 
 
 
@@ -208,7 +209,7 @@ object OrderWideApp {
 
     import  sparkSession.implicits._
     orderWideWithSplitDstream.foreachRDD{rdd=>
-      //rdd.cache()
+      rdd.cache()
       val df: DataFrame = rdd.toDF()
       df.write.mode(SaveMode.Append)
         .option("batchsize", "100")

@@ -9,4 +9,6 @@ public interface OrderService {
     public BigDecimal getOrderTotalAmount(String dt);
     public Map getOrderHourAmount(String dt);
 
+    public  List<Map> getTrademarkSum(String startDt,String endDt);
+
 }

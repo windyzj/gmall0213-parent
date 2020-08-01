@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper SYSTEM "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.atguigu.gmall2013.publisher.mapper.TrademarkStatMapper">
+    <select id="getTrademarkSum" resultMap="rsMap">
+          SELECT  tm_name,SUM(amount) amount  FROM trademark_amount_stat
+             WHERE stat_date &gt;#{startDt}  and  stat_date &lt;#{endDt}
+             GROUP BY tm_id,tm_name
+    </select>
+    <resultMap id="rsMap" type="java.util.Map" autoMapping="true"></resultMap>
+</mapper>
