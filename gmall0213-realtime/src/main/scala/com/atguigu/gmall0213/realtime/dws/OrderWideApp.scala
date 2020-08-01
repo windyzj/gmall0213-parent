@@ -5,7 +5,7 @@ import java.util.Properties
 
 import com.alibaba.fastjson.JSON
 import com.atguigu.gmall0213.realtime.bean.{OrderDetail, OrderInfo, OrderWide}
-import com.atguigu.gmall0213.realtime.util.{MyKafkaUtil, OffsetManager, RedisUtil}
+import com.atguigu.gmall0213.realtime.util.{MyKafkaSink, MyKafkaUtil, OffsetManager, RedisUtil}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.SparkConf
@@ -15,6 +15,9 @@ import org.apache.spark.streaming.kafka010.{HasOffsetRanges, OffsetRange}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import redis.clients.jedis.Jedis
 import java.math.BigDecimal
+
+import com.alibaba.fastjson.serializer.SerializeConfig
+
 import scala.collection.mutable.ListBuffer
 
 object OrderWideApp {
@@ -205,6 +208,7 @@ object OrderWideApp {
 
     import  sparkSession.implicits._
     orderWideWithSplitDstream.foreachRDD{rdd=>
+      //rdd.cache()
       val df: DataFrame = rdd.toDF()
       df.write.mode(SaveMode.Append)
         .option("batchsize", "100")
@@ -213,6 +217,10 @@ object OrderWideApp {
         .option("driver","ru.yandex.clickhouse.ClickHouseDriver")
         .jdbc("jdbc:clickhouse://hdp1:8123/test0213","order_wide_0213",new Properties())
 
+      rdd.foreach{orderWide=>
+          MyKafkaSink.send("DWS_ORDER_WIDE",  JSON.toJSONString(orderWide,new SerializeConfig(true)))
+
+      }
 
 
       OffsetManager.saveOffset(orderInfoTopic,orderInfoGroupId,orderInfoOffsetRanges)
