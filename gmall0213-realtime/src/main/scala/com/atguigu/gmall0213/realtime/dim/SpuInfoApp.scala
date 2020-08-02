@@ -24,8 +24,7 @@ object SpuInfoApp {
 
 
     /////////////////////  偏移量处理///////////////////////////
-    val offset: Map[TopicPartition, Long] = OffsetManager
-      .getOffset(groupId, topic)
+    val offset: Map[TopicPartition, Long] = OffsetManager.getOffset(topic, groupId)
 
     var inputDstream: InputDStream[ConsumerRecord[String, String]] = null
     // 判断如果从redis中读取当前最新偏移量 则用该偏移量加载kafka中的数据  否则直接用kafka读出默认最新的数据
