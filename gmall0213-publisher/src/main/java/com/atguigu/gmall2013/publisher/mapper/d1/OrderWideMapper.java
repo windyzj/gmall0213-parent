@@ -1,4 +1,4 @@
-package com.atguigu.gmall2013.publisher.mapper;
+package com.atguigu.gmall2013.publisher.mapper.d1;
 
 import com.atguigu.gmall2013.publisher.bean.HourAmount;
 

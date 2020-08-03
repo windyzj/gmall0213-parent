@@ -6,7 +6,7 @@ import org.apache.kafka.common.TopicPartition
 import org.apache.spark.streaming.kafka010.OffsetRange
 import redis.clients.jedis.Jedis
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 
 object OffsetManager {
 
@@ -21,7 +21,7 @@ object OffsetManager {
     // scala 2.11.8   scala 2.12.11
 
     if (offsetMap != null && offsetMap.size > 0) {
-      val offsetList: List[(String, String)] = offsetMap.toList
+      val offsetList: List[(String, String)] = offsetMap.asScala.toList
 
       val offsetListForKafka: List[(TopicPartition, Long)] = offsetList.map { case (partition, offset) =>
         val topicPartition = new TopicPartition(topic, partition.toInt)

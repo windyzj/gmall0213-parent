@@ -1,4 +1,4 @@
-package com.atguigu.gmall2013.publisher.mapper;
+package com.atguigu.gmall2013.publisher.mapper.d2;
 
 import org.apache.ibatis.annotations.Param;
 

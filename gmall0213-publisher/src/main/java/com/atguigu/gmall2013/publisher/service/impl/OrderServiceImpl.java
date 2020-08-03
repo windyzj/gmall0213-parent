@@ -1,8 +1,8 @@
 package com.atguigu.gmall2013.publisher.service.impl;
 
 import com.atguigu.gmall2013.publisher.bean.HourAmount;
-import com.atguigu.gmall2013.publisher.mapper.OrderWideMapper;
-import com.atguigu.gmall2013.publisher.mapper.TrademarkStatMapper;
+import com.atguigu.gmall2013.publisher.mapper.d1.OrderWideMapper;
+import com.atguigu.gmall2013.publisher.mapper.d2.TrademarkStatMapper;
 import com.atguigu.gmall2013.publisher.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

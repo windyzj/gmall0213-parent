@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper SYSTEM "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.atguigu.gmall2013.publisher.mapper.OrderWideMapper">
+<mapper namespace="com.atguigu.gmall2013.publisher.mapper.d1.OrderWideMapper">
     <select id="getOrderTotalAmount" resultType="java.math.BigDecimal">
          select sum(final_detail_amount) order_total_amount from order_wide_0213 where dt= #{dt}
     </select>
