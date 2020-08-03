@@ -5,6 +5,8 @@
           SELECT  tm_name,SUM(amount) amount  FROM trademark_amount_stat
              WHERE stat_date &gt;=#{startDt}  and  stat_date &lt;=#{endDt}
              GROUP BY tm_id,tm_name
+             order by amount desc
+             limit 5
     </select>
     <resultMap id="rsMap" type="java.util.Map" autoMapping="true"></resultMap>
 </mapper>

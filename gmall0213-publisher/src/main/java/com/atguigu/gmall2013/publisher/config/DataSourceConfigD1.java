@@ -14,7 +14,6 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import javax.sql.DataSource;
 
-
 //表示这个类为一个配置类
 @Configuration
 // 配置mybatis的接口类放的地方
@@ -23,19 +22,21 @@ public class DataSourceConfigD1 {
     // 将这个对象放入Spring容器中
     @Bean(name = "dataSourceD1")
     @ConfigurationProperties(prefix = "spring.datasource.d1")
+    @Primary
     public DataSource getDateSourceD1() {
         return DataSourceBuilder.create().build();
     }
 
-    @Bean
-    @ConfigurationProperties(prefix = "mybatis.configuration")
+    @Bean("configD1")
+    @ConfigurationProperties(prefix = "mybatis.configuration.d1")
     public org.apache.ibatis.session.Configuration globalConfigation(){
         return new org.apache.ibatis.session.Configuration();
     }
 
 
     @Bean(name = "sqlSessionFactoryD1")
-    public SqlSessionFactory sqlSessionFactoryD1(@Qualifier("dataSourceD1") DataSource datasource, org.apache.ibatis.session.Configuration globalConfigation)
+    @Primary
+    public SqlSessionFactory sqlSessionFactoryD1(@Qualifier("dataSourceD1") DataSource datasource,@Qualifier("configD1") org.apache.ibatis.session.Configuration globalConfigation)
             throws Exception {
         SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
         bean.setDataSource(datasource);
@@ -47,7 +48,7 @@ public class DataSourceConfigD1 {
 
     }
     @Bean("sqlSessionTemplateD1")
-    // 表示这个数据源是默认数据源
+    @Primary
     public SqlSessionTemplate sqlSessionTemplateD1(
             @Qualifier("sqlSessionFactoryD1") SqlSessionFactory sessionfactory) {
         return new SqlSessionTemplate(sessionfactory);

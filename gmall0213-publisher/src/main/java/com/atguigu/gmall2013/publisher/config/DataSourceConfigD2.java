@@ -26,18 +26,22 @@ public class DataSourceConfigD2 {
         return DataSourceBuilder.create().build();
     }
 
-
+    @Bean("configD2")
+    @ConfigurationProperties(prefix = "mybatis.configuration.d2")
+    public org.apache.ibatis.session.Configuration globalConfigation(){
+        return new org.apache.ibatis.session.Configuration();
+    }
 
 
     @Bean(name = "sqlSessionFactoryD2")
-    public SqlSessionFactory sqlSessionFactoryD2(@Qualifier("dataSourceD2") DataSource datasource, org.apache.ibatis.session.Configuration globalConfigation)
+    public SqlSessionFactory sqlSessionFactoryD2(@Qualifier("dataSourceD2") DataSource datasource,@Qualifier("configD2") org.apache.ibatis.session.Configuration globalConfigation)
             throws Exception {
         SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
         bean.setDataSource(datasource);
         bean.setMapperLocations(
                 new PathMatchingResourcePatternResolver().getResources("classpath:mapper/d2/*.xml"));
 
-        bean.setConfiguration(globalConfigation);
+       bean.setConfiguration(globalConfigation);
         return bean.getObject();
 
     }
